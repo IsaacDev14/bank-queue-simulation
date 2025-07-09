@@ -22,6 +22,9 @@ def run_simulation():
     Customers = []
     id_counter = 1
 
+    current_customer = None
+    service_end_time = 0
+
     print("== Simulations Begins ===")
 
 
@@ -35,13 +38,28 @@ def run_simulation():
             queue.append(customer)
             Customers.append(customer)
 
-            print(f"Customer {id_counter} arrived at {time} with service time {service_time}" )
+            print(f"[{time}] Customer {id_counter} arrived (needs {service_time} mins)")
 
             #schedule the next customer arrival
             next_arrival = time + random.randint(1, max_arrival_interval)
             id_counter += 1
 
+        # if no one is being served and there's someone  in the queue
+        if current_customer is None and queue:
+            current_customer = queue.pop(0)
+            current_customer.start_time = time
+            current_customer.wait_time = time - current_customer.arrival_time
+            service_end_time = time + current_customer.service_time
+
+            print(f"{time} Servinf Customer {current_customer.id} (waited {current_customer.wait_time} mins)")
+
+        if current_customer and time == service_end_time:
+            print(f"[{time}] Finished with Customer {current_customer.id}")
+            current_customer = None
+
         time += 1
+
+# Teller Service Logic
 
 
 
