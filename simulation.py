@@ -1,6 +1,8 @@
 import random
+from graph import plot_wait_times
 
-# Define a class to represent each customer in the simulation
+
+# class to represent each customer in the simulation
 class Customer:
     def __init__(self, id, arrival_time, service_time):
         self.id = id
@@ -16,7 +18,7 @@ def run_simulation():
     max_service_time = 10
 
     time = 0
-    next_arrival = random.randint(1, max_arrival_interval) 
+    next_arrival = random.randint(1, max_arrival_interval)
 
     queue = []
     Customers = []
@@ -27,39 +29,31 @@ def run_simulation():
 
     print("== Simulations Begins ===")
 
-
-    # Add Customer Arrival Logic to the Loop
     while time < simulation_time:
         if time == next_arrival:
             service_time = random.randint(1, max_service_time)
-
-            # create a new customer and add to the queue
             customer = Customer(id=id_counter, arrival_time=time, service_time=service_time)
             queue.append(customer)
             Customers.append(customer)
-
             print(f"[{time}] Customer {id_counter} arrived (needs {service_time} mins)")
-
-            #schedule the next customer arrival
             next_arrival = time + random.randint(1, max_arrival_interval)
             id_counter += 1
 
-        # if no one is being served and there's someone  in the queue
         if current_customer is None and queue:
             current_customer = queue.pop(0)
             current_customer.start_time = time
             current_customer.wait_time = time - current_customer.arrival_time
             service_end_time = time + current_customer.service_time
-
-            print(f"{time} Servinf Customer {current_customer.id} (waited {current_customer.wait_time} mins)")
+            print(f"{time} Serving Customer {current_customer.id} (waited {current_customer.wait_time} mins)")
 
         if current_customer and time == service_end_time:
             print(f"[{time}] Finished with Customer {current_customer.id}")
             current_customer = None
 
-        time += 1
+        time += 1  
 
-        print("\n=== Simulation Summary ===")
+
+    print("\n=== Simulation Summary ===")
     total_wait_time = 0
     total_served = 0
 
@@ -77,3 +71,5 @@ def run_simulation():
     average_wait = total_wait_time / total_served if total_served > 0 else 0
     print(f"\nTotal customers served: {total_served}")
     print(f"Average wait time: {average_wait:.2f} minutes")
+
+    plot_wait_times(Customers)
