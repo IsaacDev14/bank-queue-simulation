@@ -59,7 +59,18 @@ def run_simulation():
 
         time += 1
 
-# Teller Service Logic
+    print ("\n=== Simulation Summary ===")
+    total_wait_time = 0
+    total_served = len(Customers)
+    for customer in Customers:
+        total_wait_time += customer.wait_time
+        print(
+            f"Customer {customer.id}: Arrived at {customer.arrival_time},"
+            f"Started at {customer.start_time}, "
+            f"Waited {customer.wait_time} mins, "
+            f"Service time: {customer.service_time} mins"
+        )
 
-
-
+    average_wait = total_wait_time / total_served if total_served > 0 else 0
+    print(f"\nTotal customers served: {total_served}")
+    print(f"\n Average wait time: {average_wait:2.f} minutes")
