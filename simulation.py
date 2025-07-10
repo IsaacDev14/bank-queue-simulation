@@ -12,7 +12,7 @@ class Customer:
         self.wait_time = None
     
 # Simulation Time Loop
-def run_simulation():
+def run_simulation(max_arrival_interval=5, max_service_time=10, simulation_time=60):
     simulation_time = 60
     max_arrival_interval = 5
     max_service_time = 10
