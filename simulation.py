@@ -2,7 +2,6 @@ import random
 from graph import plot_wait_times
 
 
-# class to represent each customer in the simulation
 class Customer:
     def __init__(self, id, arrival_time, service_time):
         self.id = id
@@ -54,6 +53,8 @@ def run_simulation(max_arrival_interval=5, max_service_time=10, simulation_time=
 
 
     print("\n=== Simulation Summary ===")
+    print(f"Simulation Config -> Duration: {simulation_time} mins | Arrival: every 1–{max_arrival_interval} mins | Service Time: 1–{max_service_time} mins")
+
     total_wait_time = 0
     total_served = 0
 
