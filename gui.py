@@ -3,8 +3,8 @@ from simulation import run_simulation
 import sys
 import io
 
-# Custom stream to redirect print() output to GUI text box
-class OutputRedirector(io.StringIO):
+
+class OutputRedirector(io.StringIO): # redirect print() output to GUI text box
     def __init__(self, output_widget):
         super().__init__()
         self.output_widget = output_widget
@@ -16,14 +16,14 @@ class OutputRedirector(io.StringIO):
     def flush(self):
         pass
 
-# Function to log with tag color
+# tag color
 def tagged_log(widget, message, tag=None):
     widget.insert(tk.END, message + '\n', tag)
     widget.see(tk.END)
 
 # Function called when "Run Simulation" button is clicked
 def run_from_gui(arrival_var, service_var, duration_var, output_box):
-    output_box.delete("1.0", tk.END)  # Clear previous output
+    output_box.delete("1.0", tk.END)  
     sys.stdout = OutputRedirector(output_box)  # Redirect stdout to GUI
 
     try:
@@ -39,7 +39,7 @@ def run_from_gui(arrival_var, service_var, duration_var, output_box):
     finally:
         sys.stdout = sys.__stdout__  # Restore after run
 
-# GUI window setup
+
 def launch_gui():
     window = tk.Tk()
     window.title("Bank Queue Simulation")
@@ -72,12 +72,12 @@ def launch_gui():
     output_box.configure(yscrollcommand=scrollbar.set)
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    # Color tag config
+    
     output_box.tag_configure("green", foreground="green")
     output_box.tag_configure("yellow", foreground="orange")
     output_box.tag_configure("red", foreground="red")
 
-    # Run button
+    
     tk.Button(
         window, text="Run Simulation",
         command=lambda: run_from_gui(arrival_var, service_var, duration_var, output_box),

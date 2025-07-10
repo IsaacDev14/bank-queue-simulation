@@ -87,5 +87,4 @@ def run_simulation(max_arrival_interval=5, max_service_time=10, simulation_time=
 
     log(f"{len(stressed)} out of {total_served} customers waited over {STRESS_THRESHOLD} mins ({stress_percent:.1f}%)", "yellow")
 
-    # Show plot
     plot_wait_times(Customers)
