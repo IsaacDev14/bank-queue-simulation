@@ -7,10 +7,10 @@ def plot_wait_times(customers):
     ids = [c.id for c in served_customers]
     waits = [c.wait_time for c in served_customers]
 
-    # Threshold: anything over this is considered high wait time
+    
     STRESS_THRESHOLD = 10
 
-    # Choose colors based on stress level
+    
     colors = [
         "#e74c3c" if wait > STRESS_THRESHOLD else "#3498db"  # red if too long, blue otherwise
         for wait in waits
@@ -19,7 +19,7 @@ def plot_wait_times(customers):
     plt.style.use('seaborn-v0_8-darkgrid')
     sns.set_palette("husl")
 
-    fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
+    fig, ax = plt.subplots(figsize=(6, 3), dpi=100)
     bars = ax.bar(ids, waits, color=colors, edgecolor='white', linewidth=0.5)
 
     for bar in bars:
