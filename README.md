@@ -34,32 +34,32 @@ It is also a learning project for system modeling, data visualization, and decis
 
 1. Clone the repository:
 
-   ```
+   ```bash
    git clone https://github.com/yourusername/smart-queue-simulator.git
    ```
 
 2. Create a virtual environment and activate it:
 
-   ```
+   ```bash
    python -m venv venv
    source venv/bin/activate   # On Windows: venv\Scripts\activate
    ```
 
 3. Install required packages:
 
-   ```
+   ```bash
    pip install matplotlib seaborn
    ```
 
 4. Run the application:
 
-   ```
+   ```bash
    python main.py
    ```
 
 ## Folder Structure
 
-```
+```text
 .
 ├── gui.py               # Tkinter GUI
 ├── simulation.py        # Core simulation logic
