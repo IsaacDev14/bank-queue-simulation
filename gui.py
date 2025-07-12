@@ -6,14 +6,13 @@ from simulation import Simulation, SimulationState
 from plotting import SimulationPlot
 import datetime # For timestamps in the log
 
-# --- Constants for Styling ---
-BG_COLOR = "#e0e7ee"  # Light grey-blue background
-CONTROLS_BG = "#ffffff"  # White for control and summary panels
-LOG_BG = "#263238"    # Dark blue-grey for log
-LOG_FG = "#eceff1"    # Light grey for log text
-PRIMARY_ACCENT = "#4f46e5" # Indigo for primary buttons/highlights
-SECONDARY_ACCENT = "#6366f1" # Lighter indigo for active states
-FONT_FAMILY = "Inter" # Modern font choice
+BG_COLOR = "#e0e7ee"  
+CONTROLS_BG = "#ffffff"  
+LOG_BG = "#263238"    
+LOG_FG = "#eceff1"    
+PRIMARY_ACCENT = "#4f46e5" 
+SECONDARY_ACCENT = "#6366f1" 
+FONT_FAMILY = "Inter" 
 
 class Application(tk.Frame):
     """Main application class for the simulation GUI."""
@@ -24,33 +23,30 @@ class Application(tk.Frame):
         self.master.title("Dynamic Queueing System Simulation")
         self.master.geometry("1200x800")
         self.master.configure(bg=BG_COLOR)
-        self.pack(fill="both", expand=True, padx=15, pady=15) # Add padding to the main frame
+        self.pack(fill="both", expand=True, padx=15, pady=15) 
 
         self.simulation = None
         self.simulation_plot = None
-        self.simulation_speed_ms = 50  # Speed of the simulation loop in milliseconds
+        self.simulation_speed_ms = 50  
 
         self._create_widgets()
         self._layout_widgets()
 
     def _create_widgets(self):
-        """Create all the UI widgets for the application."""
-        # --- Control Frame ---
+        # Control Frame 
         self.controls_frame = tk.Frame(self, bg=CONTROLS_BG, padx=25, pady=25, relief="flat", bd=0)
         self.controls_frame.columnconfigure(1, weight=1)
 
         # --- Output Frame ---
-        self.output_frame = tk.Frame(self, bg=BG_COLOR, padx=0, pady=0) # Padding handled by main frame
-        self.output_frame.rowconfigure(0, weight=3) # Chart row - more space
+        self.output_frame = tk.Frame(self, bg=BG_COLOR, padx=0, pady=0) 
+        self.output_frame.rowconfigure(0, weight=3) 
         self.output_frame.rowconfigure(1, weight=1) # Log/Summary row
         self.output_frame.columnconfigure(0, weight=3) # Chart/Log column
         self.output_frame.columnconfigure(1, weight=1) # Summary column
 
-        # --- Control Widgets ---
         self._create_control_widgets()
 
-        # --- Plotting Widget ---
-        # The SimulationPlot needs to be initialized with its parent frame
+        
         self.simulation_plot = SimulationPlot(self.output_frame)
 
         # --- Log Widget ---
@@ -141,7 +137,7 @@ class Application(tk.Frame):
         # Plotting widget takes full width at the top of the output frame
         self.simulation_plot.get_tk_widget().grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
         
-        # Place buttons at the bottom of the controls frame
+        
         self.run_button.grid(row=5, column=0, columnspan=3, pady=(30, 10), sticky="ew", padx=10)
         self.reset_button.grid(row=6, column=0, columnspan=3, sticky="ew", padx=10)
 
@@ -207,7 +203,7 @@ class Application(tk.Frame):
         
         self.insight_label.config(text="Run simulation for insights.", foreground="#616161", font=(FONT_FAMILY, 11, "italic"))
         self.set_controls_state("normal")
-        self.run_button.config(state="normal") # Ensure run button is enabled on reset
+        self.run_button.config(state="normal") 
         self.reset_button.config(state="disabled")
 
     def update_summary_metrics(self):
@@ -257,7 +253,6 @@ class Application(tk.Frame):
     def set_controls_state(self, state):
         """Enable or disable all control widgets."""
         for child in self.controls_frame.winfo_children():
-            # Check if it's a label or a frame holding a slider, and skip if it's the title label
             if isinstance(child, ttk.Label) and child.cget("text") == "Simulation Controls":
                 continue
             if isinstance(child, (ttk.Scale, ttk.Button)):
@@ -266,9 +261,7 @@ class Application(tk.Frame):
                 for sub_child in child.winfo_children():
                     if isinstance(sub_child, (ttk.Scale, ttk.Button)):
                         sub_child.config(state=state)
-        # Explicitly handle buttons as they are laid out separately
         self.run_button.config(state="disabled" if state == "disabled" else "normal")
-        # Reset button state is managed by run/reset functions, not this general function
 
     def log(self, message, tag=None):
         """Logs a message to the text box with an optional style tag and timestamp."""
@@ -284,14 +277,12 @@ def launch_gui():
     
     # --- Style Configuration ---
     style = ttk.Style(root)
-    style.theme_use('clam') # 'clam' theme provides a more modern base
+    style.theme_use('clam') 
 
     # General Label Style
-    style.configure("TLabel", background=BG_COLOR, font=(FONT_FAMILY, 10), foreground="#333333") # Darker text
-    
+    style.configure("TLabel", background=BG_COLOR, font=(FONT_FAMILY, 10), foreground="#333333") 
     # Frame Styles
     style.configure("TFrame", background=BG_COLOR)
-    # Specific frame background for controls and summary
     style.configure("Controls.TFrame", background=CONTROLS_BG)
 
     # Button Styles
@@ -299,14 +290,14 @@ def launch_gui():
                     font=(FONT_FAMILY, 12, "bold"), 
                     foreground="white", 
                     background=PRIMARY_ACCENT,
-                    relief="flat", # Flat button look
-                    padding=10, # More padding
+                    relief="flat", # 
+                    padding=10, 
                     borderwidth=0,
-                    focusthickness=0) # Remove focus border
+                    focusthickness=0) 
     style.map("Accent.TButton", 
-              background=[('active', SECONDARY_ACCENT)], # Lighter on hover
-              foreground=[('disabled', '#cccccc')], # Grey out text when disabled
-              bordercolor=[('!disabled', PRIMARY_ACCENT)]) # Border color for consistency
+              background=[('active', SECONDARY_ACCENT)], 
+              foreground=[('disabled', '#cccccc')], 
+              bordercolor=[('!disabled', PRIMARY_ACCENT)]) 
     
     style.configure("TButton", 
                     font=(FONT_FAMILY, 12), 
