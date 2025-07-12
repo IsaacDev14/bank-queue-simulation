@@ -1,35 +1,21 @@
-# simulation.py
-#
-# Role: Core Simulation Logic
-#
-# This module contains the "engine" of the simulation. It's a class that
-# manages the state (time, queue, customers) and progression of the simulation.
-# Crucially, it contains NO GUI code (Tkinter, plotting). This separation means
-# you could run this simulation from a command line, a web server, or any
-# other interface, making it highly reusable.
-
 import random
 from enum import Enum, auto
 
-class SimulationState(Enum):
-    """Represents the current state of the simulation."""
+class SimulationState(Enum): #the state at which the simuation is
     READY = auto()
     RUNNING = auto()
     FINISHED = auto()
     STOPPED = auto()
 
 class Customer:
-    """Represents a single customer with their timing details."""
     def __init__(self, id, arrival_time, service_time):
         self.id = id
         self.arrival_time = arrival_time
         self.service_time = service_time
-        self.start_time = None  # Time service begins
-        self.wait_time = None   # Time spent in queue
+        self.start_time = None  
+        self.wait_time = None   
 
-class Simulation:
-    """Manages the entire state and logic of the queueing simulation."""
-
+class Simulation: #To manage the entire state and logic of the queueing simulation.
     def __init__(self, duration, max_arrival, max_service):
         self.duration = duration
         self.max_arrival = max_arrival
@@ -37,7 +23,6 @@ class Simulation:
         self.reset()
 
     def reset(self):
-        """Resets the simulation to its initial state."""
         self.time = 0
         self.queue = []
         self.all_customers = []
@@ -49,14 +34,9 @@ class Simulation:
         self._set_next_arrival()
 
     def _set_next_arrival(self):
-        """Schedules the arrival time of the next customer."""
         self.next_arrival = self.time + random.randint(1, self.max_arrival)
 
     def step(self):
-        """
-        Advances the simulation by a single time step and returns events.
-        This is the heart of the simulation engine.
-        """
         if self.time >= self.duration:
             self.state = SimulationState.FINISHED
             return []
@@ -76,7 +56,7 @@ class Simulation:
             self.id_counter += 1
             self._set_next_arrival()
 
-        # Event 2: The server is free and can serve the next customer
+        # Event 2: making The server free to serve the next customer
         if self.current_customer is None and self.queue:
             self.current_customer = self.queue.pop(0)
             self.current_customer.start_time = self.time
@@ -100,12 +80,10 @@ class Simulation:
         if self.current_customer:
             self.total_busy_time += 1
             
-        # Advance the simulation clock
         self.time += 1
         return events
 
     def get_summary(self, stress_threshold):
-        """Calculates and returns summary statistics of the simulation."""
         served = [c for c in self.all_customers if c.wait_time is not None]
         
         if not served:
@@ -123,7 +101,6 @@ class Simulation:
         stressed_customers = [c for c in served if c.wait_time > stress_threshold]
         stress_percent = (len(stressed_customers) / len(served)) * 100
 
-        # Generate summary messages for the log
         summary_messages = [
             f"Total customers served: {len(served)}",
             f"Average wait time: {avg_wait:.2f} minutes",
@@ -131,7 +108,6 @@ class Simulation:
             f"Server utilization: {utilization:.2f}%"
         ]
 
-        # Generate a qualitative insight based on performance
         if stress_percent == 0:
             insight = {'text': "Excellent Performance: All customers were served quickly.", 'color': "#2e7d32"} # Green
         elif stress_percent < 25:

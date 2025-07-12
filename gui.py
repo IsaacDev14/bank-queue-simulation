@@ -1,11 +1,4 @@
-# gui.py
-#
-# Role: Manages the Graphical User Interface (GUI)
-#
-# This module uses Tkinter to build the application window, including all the
-# controls (sliders, buttons) and output areas (log, summary, chart).
-# It acts as the "controller" that connects user actions to the simulation
-# logic and visual feedback.
+
 
 import tkinter as tk
 from tkinter import ttk
