@@ -1,332 +1,311 @@
-
-
+# gui.py
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog, messagebox
+import sv_ttk
+import csv
 from simulation import Simulation, SimulationState
-from plotting import SimulationPlot
-import datetime # For timestamps in the log
+from plotting  import SimulationPlot
+from config import SIMULATION_CONFIG
 
-BG_COLOR = "#e0e7ee"  
-CONTROLS_BG = "#ffffff"  
-LOG_BG = "#263238"    
-LOG_FG = "#eceff1"    
-PRIMARY_ACCENT = "#4f46e5" 
-SECONDARY_ACCENT = "#6366f1" 
-FONT_FAMILY = "Inter" 
+# --- UI Constants ---
+FONT_FAMILY = "Inter"
 
 class Application(tk.Frame):
-    """Main application class for the simulation GUI."""
-
+    """The main GUI application for the simulation."""
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
-        self.master.title("Dynamic Queueing System Simulation")
-        self.master.geometry("1200x800")
-        self.master.configure(bg=BG_COLOR)
-        self.pack(fill="both", expand=True, padx=15, pady=15) 
+        self.master.title("Multi-Server Queueing System Simulation")
+        self.master.geometry("1400x900")
 
+        # --- Style Configuration ---
+        sv_ttk.set_theme("dark")
+        self.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # --- Instance Variables ---
         self.simulation = None
-        self.simulation_plot = None
-        self.simulation_speed_ms = 50  
+        self.simulation_speed_ms = 25  # Faster update interval
 
         self._create_widgets()
         self._layout_widgets()
 
     def _create_widgets(self):
-        # Control Frame 
-        self.controls_frame = tk.Frame(self, bg=CONTROLS_BG, padx=25, pady=25, relief="flat", bd=0)
-        self.controls_frame.columnconfigure(1, weight=1)
+        """Create all the UI widgets."""
+        # --- Frames ---
+        self.controls_frame = ttk.Frame(self, padding=25)
+        self.output_frame = ttk.Frame(self)
+        self.plot_frame = ttk.Frame(self.output_frame)
+        self.info_frame = ttk.Frame(self.output_frame)
+        self.log_frame = ttk.LabelFrame(self.info_frame, text="Simulation Log", padding=15)
+        self.summary_frame = ttk.LabelFrame(self.info_frame, text="Live Summary", padding=15)
+        self.status_frame = ttk.LabelFrame(self.controls_frame, text="Live Status", padding=15)
 
-        # --- Output Frame ---
-        self.output_frame = tk.Frame(self, bg=BG_COLOR, padx=0, pady=0) 
-        self.output_frame.rowconfigure(0, weight=3) 
-        self.output_frame.rowconfigure(1, weight=1) # Log/Summary row
-        self.output_frame.columnconfigure(0, weight=3) # Chart/Log column
-        self.output_frame.columnconfigure(1, weight=1) # Summary column
+        # --- Control Widgets ---
+        self._create_control_sliders()
+        self.run_button = ttk.Button(self.controls_frame, text="Run Simulation", command=self.run_simulation, style='Accent.TButton')
+        self.reset_button = ttk.Button(self.controls_frame, text="Reset", command=self.reset_simulation, state="disabled")
+        self.export_button = ttk.Button(self.controls_frame, text="Export Customer Data", command=self.export_to_csv, state="disabled")
+        self.theme_switch = ttk.Checkbutton(self.controls_frame, text="Dark Mode", style="Switch.TCheckbutton", command=sv_ttk.toggle_theme)
+        self.theme_switch.state(['selected']) # Default to dark theme
 
-        self._create_control_widgets()
-
+        # --- Output Widgets ---
+        self.simulation_plot = SimulationPlot(self.plot_frame)
+        self.progress_bar = ttk.Progressbar(self.plot_frame, orient="horizontal", mode="determinate")
         
-        self.simulation_plot = SimulationPlot(self.output_frame)
-
-        # --- Log Widget ---
         self._create_log_widgets()
-        
-        # --- Summary Widget ---
         self._create_summary_widgets()
-
-
-    def _create_control_widgets(self):
-        """Create the widgets for the control panel."""
-        ttk.Label(self.controls_frame, text="Simulation Controls", 
-                  font=(FONT_FAMILY, 18, "bold"), background=CONTROLS_BG, 
-                  foreground=PRIMARY_ACCENT).grid(row=0, column=0, columnspan=3, pady=(0, 30), sticky="w")
+        self._create_status_widgets()
         
-        self.duration_var = self._create_slider("Simulation Duration (mins)", 30, 300, 120, 1)
-        self.arrival_var = self._create_slider("Max Arrival Interval (mins)", 1, 10, 4, 2)
-        self.service_var = self._create_slider("Max Service Time (mins)", 1, 20, 8, 3)
-        self.stress_var = self._create_slider("High Wait Threshold (mins)", 1, 30, 10, 4)
-
-        # Buttons with improved styling
-        self.run_button = ttk.Button(self.controls_frame, text="Run Simulation", command=self.run_simulation, style="Accent.TButton")
-        self.reset_button = ttk.Button(self.controls_frame, text="Reset", command=self.reset_simulation, state="disabled", style="TButton")
+    def _create_control_sliders(self):
+        """Create the sliders for simulation parameters."""
+        ttk.Label(self.controls_frame, text="Simulation Controls", font=(FONT_FAMILY, 18, "bold"), style='Accent.TLabel').grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky="w")
+        
+        self.duration_var = self._create_slider("Duration (mins)", 60, 720, SIMULATION_CONFIG['duration'], 1)
+        self.servers_var = self._create_slider("Number of Servers", 1, 10, SIMULATION_CONFIG['num_servers'], 2)
+        self.arrival_var = self._create_slider("Max Arrival Interval", 1, 15, SIMULATION_CONFIG['max_arrival_interval'], 3)
+        self.service_var = self._create_slider("Max Service Time", 5, 25, SIMULATION_CONFIG['max_service_time'], 4)
+        self.stress_var = self._create_slider("Stress Threshold (wait)", 1, 30, SIMULATION_CONFIG['stress_threshold'], 5)
 
     def _create_log_widgets(self):
-        """Create the widgets for the simulation log."""
-        log_frame = tk.Frame(self.output_frame, bg=BG_COLOR, relief="flat")
-        log_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 15), pady=(15, 0))
-        
-        ttk.Label(log_frame, text="Simulation Log", font=(FONT_FAMILY, 16, "bold"), 
-                  background=BG_COLOR, foreground=PRIMARY_ACCENT).pack(anchor="w", pady=(0, 10))
-        
-        # Use a scrolled text widget for better UX
-        self.log_box = tk.Text(log_frame, height=15, width=80, bg=LOG_BG, fg=LOG_FG, 
-                               font=(FONT_FAMILY, 10), wrap="word", relief="flat", bd=0,
-                               insertbackground="white") # Cursor color
-        self.log_box.pack(fill="both", expand=True, pady=(0,0))
-        
-        # Add a scrollbar
-        log_scrollbar = ttk.Scrollbar(self.log_box, command=self.log_box.yview)
-        log_scrollbar.pack(side="right", fill="y")
+        """Create the text box for logging events."""
+        self.log_box = tk.Text(self.log_frame, height=10, font=(FONT_FAMILY, 10), wrap="word", relief="flat", bd=0)
+        log_scrollbar = ttk.Scrollbar(self.log_frame, orient="vertical", command=self.log_box.yview)
         self.log_box.config(yscrollcommand=log_scrollbar.set)
-
-        self.log_box.tag_configure("arrival", foreground="#81d4fa") # Light Blue
-        self.log_box.tag_configure("service", foreground="#ffe082") # Light Yellow
-        self.log_box.tag_configure("finish", foreground="#a7d9b5") # Light Green
-        self.log_box.tag_configure("summary", foreground="#ffffff", font=(FONT_FAMILY, 10, "bold"))
-        self.log_box.tag_configure("timestamp", foreground="#9e9e9e", font=(FONT_FAMILY, 9)) # Grey for timestamps
         
-        self.log(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Adjust controls and click 'Run Simulation'.", "summary")
+        self.log_box.pack(side="left", fill="both", expand=True)
+        log_scrollbar.pack(side="right", fill="y")
+        
+        # Log message tags for color-coding
+        self.log_box.tag_configure("arrival", foreground="#3498db")
+        self.log_box.tag_configure("service", foreground="#f1c40f")
+        self.log_box.tag_configure("finish", foreground="#2ecc71")
+        self.log_box.tag_configure("summary", font=(FONT_FAMILY, 10, "bold"))
 
     def _create_summary_widgets(self):
-        """Create the widgets for the summary panel."""
-        summary_frame = tk.Frame(self.output_frame, bg=CONTROLS_BG, relief="flat", bd=0)
-        summary_frame.grid(row=1, column=1, sticky="nsew", padx=(15, 0), pady=(15, 0))
-        summary_frame.grid_propagate(False) # Prevent frame from shrinking to content size
-        
-        ttk.Label(summary_frame, text="Live Summary", font=(FONT_FAMILY, 16, "bold"), 
-                  background=CONTROLS_BG, foreground=PRIMARY_ACCENT).pack(pady=(15, 10))
-        
-        # Use a grid for metrics for better alignment
-        metrics_container = tk.Frame(summary_frame, bg=CONTROLS_BG)
-        metrics_container.pack(pady=10, padx=20, fill="x")
-        metrics_container.columnconfigure(0, weight=1)
-        metrics_container.columnconfigure(1, weight=1)
-
+        """Create the labels for displaying summary metrics."""
         self.metrics = {
-            "Avg. Wait": self._create_metric(metrics_container, "Avg. Wait", "0.0", row=0),
-            "Max Wait": self._create_metric(metrics_container, "Max Wait", "0", row=1),
-            "Served": self._create_metric(metrics_container, "Served", "0", row=2),
-            "Utilization": self._create_metric(metrics_container, "Utilization", "0%", row=3)
+            "Avg. Wait": self._create_metric("Avg. Wait Time", "0.0 min"),
+            "Max Wait": self._create_metric("Max Wait Time", "0 min"),
+            "Served": self._create_metric("Customers Served", "0"),
+            "Utilization": self._create_metric("Avg. Utilization", "0%")
         }
+        self.insight_label = ttk.Label(self.summary_frame, text="Run simulation to see insights.", wraplength=280, justify="center", font=(FONT_FAMILY, 11, "italic"))
 
-        self.insight_label = ttk.Label(summary_frame, text="Run simulation for insights.", 
-                                       wraplength=250, background=CONTROLS_BG, justify="center", 
-                                       font=(FONT_FAMILY, 11, "italic"), foreground="#616161") # Dark grey italic
-        self.insight_label.pack(pady=(20, 20), padx=15, fill="x", expand=True)
+    def _create_status_widgets(self):
+        """Create the live status indicators for queue and servers."""
+        self.queue_label_var = tk.StringVar(value="Queue: 0")
+        ttk.Label(self.status_frame, textvariable=self.queue_label_var, font=(FONT_FAMILY, 14, "bold")).pack(pady=5)
+        self.server_status_frame = ttk.Frame(self.status_frame)
+        self.server_status_frame.pack(pady=10)
+        self.server_labels = []
 
     def _layout_widgets(self):
-        """Layout the main frames of the application."""
-        self.grid_columnconfigure(0, weight=0) # Controls frame fixed width
-        self.grid_columnconfigure(1, weight=1) # Output frame expands
+        """Arrange all widgets in the main window."""
+        self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
         
-        self.controls_frame.grid(row=0, column=0, sticky="nsw", padx=(0, 15), pady=0)
-        self.output_frame.grid(row=0, column=1, sticky="nsew", padx=(15, 0), pady=0)
+        self.controls_frame.grid(row=0, column=0, sticky="nsw", padx=(0, 20))
+        self.output_frame.grid(row=0, column=1, sticky="nsew")
+
+        # Layout within controls_frame
+        self.status_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(20, 10))
+        self.run_button.grid(row=7, column=0, columnspan=2, pady=(20, 10), sticky="ew")
+        self.reset_button.grid(row=8, column=0, columnspan=2, pady=5, sticky="ew")
+        self.export_button.grid(row=9, column=0, columnspan=2, pady=5, sticky="ew")
+        self.theme_switch.grid(row=10, column=0, columnspan=2, pady=(20, 0), sticky="w")
         
-        # Plotting widget takes full width at the top of the output frame
-        self.simulation_plot.get_tk_widget().grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0, 15))
+        # Layout within output_frame
+        self.output_frame.rowconfigure(0, weight=3)
+        self.output_frame.rowconfigure(1, weight=1)
+        self.output_frame.columnconfigure(0, weight=1)
+
+        self.plot_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        self.plot_frame.rowconfigure(0, weight=1)
+        self.plot_frame.columnconfigure(0, weight=1)
+        self.simulation_plot.get_tk_widget().pack(fill="both", expand=True)
+        self.progress_bar.pack(fill="x", pady=(5,0))
         
+        self.info_frame.grid(row=1, column=0, sticky="nsew")
+        self.info_frame.columnconfigure(0, weight=2)
+        self.info_frame.columnconfigure(1, weight=1)
+        self.info_frame.rowconfigure(0, weight=1)
         
-        self.run_button.grid(row=5, column=0, columnspan=3, pady=(30, 10), sticky="ew", padx=10)
-        self.reset_button.grid(row=6, column=0, columnspan=3, sticky="ew", padx=10)
+        self.log_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
+        self.summary_frame.grid(row=0, column=1, sticky="nsew")
+
+        for i, (key, var) in enumerate(self.metrics.items()):
+            var['frame'].pack(fill="x", padx=10, pady=5)
+        self.insight_label.pack(pady=15, padx=10, fill="x", expand=True)
 
     def run_simulation(self):
-        """Starts the simulation process."""
-        self.reset_simulation() # Clear previous state
+        """Starts a new simulation run."""
+        self.reset_simulation()
         self.set_controls_state("disabled")
-
+        
         self.simulation = Simulation(
             duration=self.duration_var.get(),
+            num_servers=self.servers_var.get(),
             max_arrival=self.arrival_var.get(),
             max_service=self.service_var.get()
         )
-        self.log_box.delete("1.0", tk.END)
-        self.log(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] === Simulation Begins ===", "summary")
-        self.log(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Duration: {self.simulation.duration} mins | Arrival: 1-{self.simulation.max_arrival} mins | Service: 1-{self.simulation.max_service} mins")
-        
-        self.update_simulation() # Start the loop
+        self.update_server_display(self.servers_var.get())
 
+        self.log_box.delete("1.0", tk.END)
+        self.log("=== Simulation Starting ===", "summary")
+        self.update_simulation()
+        
     def update_simulation(self):
         """The main simulation loop, called repeatedly."""
-        if self.simulation is None or self.simulation.state != SimulationState.RUNNING:
+        if self.simulation.state != SimulationState.RUNNING:
             return
 
         events = self.simulation.step()
         for event in events:
             self.log(event['message'], event['type'])
             if event['type'] == 'finish':
-                self.simulation_plot.update_plot(event['customer'], self.stress_var.get())
-        
-        self.update_summary_metrics()
+                summary = self.simulation.get_summary(self.stress_var.get())
+                self.simulation_plot.update_plot(
+                    event['customer'],
+                    summary.get('avg_wait', 0),
+                    self.stress_var.get()
+                )
 
+        self.update_live_data()
+        
         if self.simulation.state == SimulationState.FINISHED:
             self.finish_simulation()
         else:
             self.master.after(self.simulation_speed_ms, self.update_simulation)
 
     def finish_simulation(self):
-        """Finalizes the simulation and displays summary insights."""
-        self.log(f"\n[{datetime.datetime.now().strftime('%H:%M:%S')}] === Simulation Summary ===", "summary")
+        """Finalizes the simulation and displays results."""
+        self.log("\n=== Simulation Finished ===", "summary")
         summary = self.simulation.get_summary(self.stress_var.get())
         
-        for msg in summary['messages']:
-            self.log(msg)
-            
-        self.insight_label.config(text=summary['insight']['text'], foreground=summary['insight']['color'], font=(FONT_FAMILY, 12, "bold"))
+        insight_text = "System appears balanced."
+        if summary['utilization'] > 90:
+            insight_text = "High server utilization may lead to long waits. Consider adding servers."
+        elif summary['utilization'] < 40:
+            insight_text = "Low server utilization. Consider reducing servers if wait times are low."
+        if summary['avg_wait'] > self.stress_var.get():
+            insight_text = "Average wait time is above the stress threshold. System is under pressure."
+
+        self.insight_label.config(text=insight_text, font=(FONT_FAMILY, 11, "bold"))
         self.set_controls_state("normal")
         self.reset_button.config(state="normal")
-    
+        self.export_button.config(state="normal")
+
     def reset_simulation(self):
-        """Resets the UI and simulation state to the beginning."""
+        """Resets the UI and simulation to the initial state."""
         if self.simulation:
             self.simulation.state = SimulationState.STOPPED
-            self.simulation = None
-            
+        
         self.simulation_plot.clear()
         self.log_box.delete("1.0", tk.END)
-        self.log(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Adjust controls and click 'Run Simulation'.", "summary")
+        self.log("Adjust controls and click 'Run Simulation'.")
         
-        for key, var in self.metrics.items():
-            var.set("0" if key != "Avg. Wait" else "0.0")
-        self.metrics["Utilization"].set("0%")
+        self.update_metric_vars(avg_wait="0.0 min", max_wait="0 min", served="0", util="0%")
+        self.insight_label.config(text="Run simulation to see insights.", font=(FONT_FAMILY, 11, "italic"))
         
-        self.insight_label.config(text="Run simulation for insights.", foreground="#616161", font=(FONT_FAMILY, 11, "italic"))
         self.set_controls_state("normal")
-        self.run_button.config(state="normal") 
         self.reset_button.config(state="disabled")
+        self.export_button.config(state="disabled")
+        self.progress_bar['value'] = 0
+        self.queue_label_var.set("Queue: 0")
 
-    def update_summary_metrics(self):
-        """Updates the live summary panel during the simulation."""
-        if not self.simulation: return
+    def update_live_data(self):
+        """Updates all live metrics, progress, and status indicators."""
+        if not self.simulation or self.simulation.time == 0:
+            return
 
         summary = self.simulation.get_summary(self.stress_var.get())
-        self.metrics["Avg. Wait"].set(f"{summary['avg_wait']:.1f}")
-        self.metrics["Max Wait"].set(f"{summary['max_wait']}")
-        self.metrics["Served"].set(f"{summary['total_served']}")
-        self.metrics["Utilization"].set(f"{summary['utilization']:.0f}%")
+        self.update_metric_vars(
+            avg_wait=f"{summary['avg_wait']:.1f} min",
+            max_wait=f"{summary['max_wait']:.0f} min",
+            served=f"{summary['total_served']}",
+            util=f"{summary['utilization']:.1f}%"
+        )
+        
+        # Update progress bar
+        self.progress_bar['value'] = (self.simulation.time / self.simulation.duration) * 100
+        
+        # Update queue and server status
+        self.queue_label_var.set(f"Queue: {len(self.simulation.customer_queue)}")
+        for i, server in enumerate(self.simulation.servers):
+            state = "Busy" if not server.is_free() else "Free"
+            color = "red" if state == "Busy" else "green"
+            self.server_labels[i].config(text=f"S{i+1}: {state}", foreground=color)
+            
+    def export_to_csv(self):
+        """Exports detailed customer data to a CSV file."""
+        if not self.simulation or not self.simulation.all_customers:
+            messagebox.showwarning("No Data", "There is no customer data to export.")
+            return
 
-    # --- Helper methods for creating widgets ---
+        path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        if not path:
+            return
+            
+        try:
+            with open(path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["ID", "Arrival Time", "Service Time", "Wait Time", "Served"])
+                for cust in self.simulation.all_customers:
+                    writer.writerow([
+                        cust.id, cust.arrival_time, cust.service_time,
+                        f"{cust.wait_time:.0f}" if cust.wait_time is not None else "N/A",
+                        "Yes" if cust.end_service_time is not None else "No"
+                    ])
+            messagebox.showinfo("Success", f"Data successfully exported to {path}")
+        except IOError as e:
+            messagebox.showerror("Export Failed", f"An error occurred: {e}")
+
+    # --- Helper Methods ---
+    
     def _create_slider(self, text, from_, to, default, row):
-        """Creates a labeled slider and returns its variable."""
-        ttk.Label(self.controls_frame, text=text, background=CONTROLS_BG, 
-                  font=(FONT_FAMILY, 11, "bold")).grid(row=row, column=0, sticky="w", pady=(15,5))
+        ttk.Label(self.controls_frame, text=text).grid(row=row, column=0, sticky="w", padx=(0, 10))
         var = tk.IntVar(value=default)
-        
-        slider_frame = tk.Frame(self.controls_frame, bg=CONTROLS_BG)
-        slider_frame.grid(row=row, column=1, columnspan=2, sticky="ew", pady=(15,5))
-        
-        slider = ttk.Scale(slider_frame, from_=from_, to=to, orient="horizontal", variable=var, 
-                           command=lambda s, v=var: v.set(int(float(s))), style="Custom.Horizontal.TScale")
+        slider_frame = ttk.Frame(self.controls_frame)
+        slider_frame.grid(row=row, column=1, sticky="ew")
+        slider = ttk.Scale(slider_frame, from_=from_, to=to, orient="horizontal", variable=var, command=lambda s, v=var: v.set(int(float(s))))
         slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        
-        value_label = ttk.Label(slider_frame, textvariable=var, background=CONTROLS_BG, 
-                                font=(FONT_FAMILY, 11, "bold"), width=4, anchor="e")
-        value_label.pack(side="right")
-        
+        ttk.Label(slider_frame, textvariable=var, width=4).pack(side="right")
         return var
 
-    def _create_metric(self, parent, label_text, default_value, row):
-        """Creates a single metric display for the summary panel."""
-        frame = tk.Frame(parent, bg=CONTROLS_BG)
-        frame.grid(row=row, column=0, columnspan=2, pady=5, padx=0, sticky="ew")
-        frame.columnconfigure(0, weight=1)
-        frame.columnconfigure(1, weight=1)
-        
-        ttk.Label(frame, text=f"{label_text}:", background=CONTROLS_BG, 
-                  font=(FONT_FAMILY, 11)).grid(row=0, column=0, sticky="w")
+    def _create_metric(self, label_text, default_value):
+        frame = ttk.Frame(self.summary_frame)
+        ttk.Label(frame, text=f"{label_text}:").pack(side="left")
         var = tk.StringVar(value=default_value)
-        ttk.Label(frame, textvariable=var, background=CONTROLS_BG, 
-                  font=(FONT_FAMILY, 13, "bold"), foreground=PRIMARY_ACCENT).grid(row=0, column=1, sticky="e")
-        return var
+        ttk.Label(frame, textvariable=var, font=(FONT_FAMILY, 12, "bold"), style='Accent.TLabel').pack(side="right")
+        return {'frame': frame, 'var': var}
+    
+    def update_server_display(self, num_servers):
+        """Clears and recreates the server status labels."""
+        for widget in self.server_status_frame.winfo_children():
+            widget.destroy()
+        self.server_labels = []
+        
+        cols = 5 # max servers per row
+        for i in range(num_servers):
+            label = ttk.Label(self.server_status_frame, text=f"S{i+1}: Free", font=(FONT_FAMILY, 11, "bold"), foreground="green")
+            label.grid(row=i//cols, column=i%cols, padx=5, pady=2)
+            self.server_labels.append(label)
+
+    def update_metric_vars(self, avg_wait, max_wait, served, util):
+        self.metrics["Avg. Wait"]['var'].set(avg_wait)
+        self.metrics["Max Wait"]['var'].set(max_wait)
+        self.metrics["Served"]['var'].set(served)
+        self.metrics["Utilization"]['var'].set(util)
 
     def set_controls_state(self, state):
-        """Enable or disable all control widgets."""
         for child in self.controls_frame.winfo_children():
-            if isinstance(child, ttk.Label) and child.cget("text") == "Simulation Controls":
-                continue
-            if isinstance(child, (ttk.Scale, ttk.Button)):
+            widget_type = child.winfo_class()
+            if widget_type in ('TScale', 'TButton'):
                 child.config(state=state)
-            elif isinstance(child, tk.Frame): # Handle slider frames
-                for sub_child in child.winfo_children():
-                    if isinstance(sub_child, (ttk.Scale, ttk.Button)):
-                        sub_child.config(state=state)
+        # Ensure run button is disabled during run, and reset is enabled after
         self.run_button.config(state="disabled" if state == "disabled" else "normal")
+        self.reset_button.config(state="normal" if state == "disabled" else "disabled")
 
     def log(self, message, tag=None):
-        """Logs a message to the text box with an optional style tag and timestamp."""
-        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
-        self.log_box.insert(tk.END, f"[{timestamp}] ", "timestamp")
-        self.log_box.insert(tk.END, message + '\n', tag)
+        self.log_box.insert(tk.END, f"[{self.simulation.time if self.simulation else 0:03d}] {message}\n", tag)
         self.log_box.see(tk.END)
-
-
-def launch_gui():
-    """Initializes and runs the Tkinter application."""
-    root = tk.Tk()
-    
-    # --- Style Configuration ---
-    style = ttk.Style(root)
-    style.theme_use('clam') 
-
-    # General Label Style
-    style.configure("TLabel", background=BG_COLOR, font=(FONT_FAMILY, 10), foreground="#333333") 
-    # Frame Styles
-    style.configure("TFrame", background=BG_COLOR)
-    style.configure("Controls.TFrame", background=CONTROLS_BG)
-
-    # Button Styles
-    style.configure("Accent.TButton", 
-                    font=(FONT_FAMILY, 12, "bold"), 
-                    foreground="white", 
-                    background=PRIMARY_ACCENT,
-                    relief="flat", # 
-                    padding=10, 
-                    borderwidth=0,
-                    focusthickness=0) 
-    style.map("Accent.TButton", 
-              background=[('active', SECONDARY_ACCENT)], 
-              foreground=[('disabled', '#cccccc')], 
-              bordercolor=[('!disabled', PRIMARY_ACCENT)]) 
-    
-    style.configure("TButton", 
-                    font=(FONT_FAMILY, 12), 
-                    background="#e0e0e0", # Light grey for default buttons
-                    foreground="#333333",
-                    relief="flat",
-                    padding=10,
-                    borderwidth=0,
-                    focusthickness=0)
-    style.map("TButton", 
-              background=[('active', '#d0d0d0')],
-              foreground=[('disabled', '#999999')])
-
-    # Scale (Slider) Styles
-    style.configure("Horizontal.TScale", background=CONTROLS_BG, troughcolor="#e0e0e0", sliderrelief="flat")
-    style.map("Horizontal.TScale", 
-              background=[('active', PRIMARY_ACCENT)], # Slider thumb color on active
-              troughcolor=[('active', "#d0d0d0")]) # Trough color on active
-
-    # Custom style for sliders to ensure consistent appearance
-    style.configure("Custom.Horizontal.TScale", 
-                    background=CONTROLS_BG, 
-                    troughcolor="#e0e0e0", # Light grey trough
-                    sliderrelief="flat",
-                    sliderthickness=18) # Make slider thumb a bit thicker
-    style.map("Custom.Horizontal.TScale", 
-              background=[('active', PRIMARY_ACCENT), ('!disabled', PRIMARY_ACCENT)], # Active and enabled thumb color
-              troughcolor=[('active', "#d0d0d0"), ('!disabled', "#d0d0d0")]) # Active and enabled trough color
-
-
-    app = Application(master=root)
-    root.mainloop()

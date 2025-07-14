@@ -3,7 +3,7 @@
 from simulation import Simulation
 from analytics import analyze_hourly
 from pattern_engine import PatternEngine
-from exporter import export_summary_csv, export_alerts_json, print_console_dashboard
+from reporting import export_summary_csv, export_alerts_json, print_console_dashboard
 
 def run_simulations(
     runs=6,

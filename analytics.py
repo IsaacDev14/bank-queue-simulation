@@ -1,36 +1,42 @@
 # analytics.py
-
+"""
+Performs detailed analysis of simulation results, such as hourly breakdowns.
+"""
 from collections import defaultdict
+from typing import List, Dict, Any
+from simulation import Customer
 
-def analyze_hourly(customers, total_time, stress_threshold):
+def analyze_hourly(customers: List[Customer], total_duration: int, stress_threshold: int) -> Dict[str, Any]:
     """
-    Analyzes customer flow and wait times across hourly segments.
+    Analyzes customer data to provide an hourly breakdown of key metrics.
     """
-    hour_summary = defaultdict(lambda: {'arrivals': 0, 'served': 0, 'stress': 0, 'total_wait': 0})
-    stressed_customers = 0
+    hourly_summary = defaultdict(lambda: {
+        'arrivals': 0, 'served': 0, 'total_wait': 0, 'stressed': 0
+    })
 
     for customer in customers:
         hour = customer.arrival_time // 60
-        hour_summary[hour]['arrivals'] += 1
+        hourly_summary[hour]['arrivals'] += 1
         if customer.wait_time is not None:
-            hour_summary[hour]['served'] += 1
-            hour_summary[hour]['total_wait'] += customer.wait_time
+            hourly_summary[hour]['served'] += 1
+            hourly_summary[hour]['total_wait'] += customer.wait_time
             if customer.wait_time > stress_threshold:
-                hour_summary[hour]['stress'] += 1
-                stressed_customers += 1
+                hourly_summary[hour]['stressed'] += 1
 
-    peak_hour = max(hour_summary.items(), key=lambda x: x[1]['arrivals'])[0] if hour_summary else None
-    avg_wait_per_hour = {
-        hour: (data['total_wait'] / data['served']) if data['served'] > 0 else 0
-        for hour, data in hour_summary.items()
+    # Calculate average wait time per hour
+    avg_waits = {
+        hour: data['total_wait'] / data['served'] if data['served'] > 0 else 0
+        for hour, data in hourly_summary.items()
     }
+    
+    # Find the hour with the most arrivals
+    peak_arrival_hour = None
+    if hourly_summary:
+        peak_arrival_hour = max(hourly_summary.items(), key=lambda item: item[1]['arrivals'])[0]
 
-    report = {
-        'total_hours': total_time // 60,
-        'peak_hour_by_arrival': peak_hour,
-        'hourly_breakdown': dict(hour_summary),
-        'average_waits': avg_wait_per_hour,
-        'total_stressed': stressed_customers
+    return {
+        'total_hours': total_duration // 60,
+        'peak_arrival_hour': peak_arrival_hour,
+        'hourly_breakdown': dict(hourly_summary),
+        'average_waits_per_hour': avg_waits
     }
-
-    return report
