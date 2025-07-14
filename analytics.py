@@ -1,7 +1,3 @@
-# analytics.py
-"""
-Performs detailed analysis of simulation results, such as hourly breakdowns.
-"""
 from collections import defaultdict
 from typing import List, Dict, Any
 from simulation import Customer
@@ -23,13 +19,11 @@ def analyze_hourly(customers: List[Customer], total_duration: int, stress_thresh
             if customer.wait_time > stress_threshold:
                 hourly_summary[hour]['stressed'] += 1
 
-    # Calculate average wait time per hour
     avg_waits = {
         hour: data['total_wait'] / data['served'] if data['served'] > 0 else 0
         for hour, data in hourly_summary.items()
     }
     
-    # Find the hour with the most arrivals
     peak_arrival_hour = None
     if hourly_summary:
         peak_arrival_hour = max(hourly_summary.items(), key=lambda item: item[1]['arrivals'])[0]

@@ -1,6 +1,3 @@
-"""
-Core simulation engine for a multi-server queueing system.
-"""
 import random
 from enum import Enum, auto
 from collections import deque
@@ -148,7 +145,7 @@ class Simulation:
         total_available_time = self.time * self.num_servers
         utilization = (self.total_busy_time / total_available_time) * 100 if total_available_time > 0 else 0
 
-        stressed_customers_count = sum(1 for c in self.served_customers if c.wait_time > stress_threshold)
+        stressed_customers_count = sum(1 for c in self.served_customers if c.wait_time is not None and c.wait_time > stress_threshold)
 
         return {
             'total_served': len(self.served_customers),
