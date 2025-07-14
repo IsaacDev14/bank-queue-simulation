@@ -1,7 +1,8 @@
+# simulation.py
 import random
 from enum import Enum, auto
 
-class SimulationState(Enum): #the state at which the simuation is
+class SimulationState(Enum):
     READY = auto()
     RUNNING = auto()
     FINISHED = auto()
@@ -12,14 +13,15 @@ class Customer:
         self.id = id
         self.arrival_time = arrival_time
         self.service_time = service_time
-        self.start_time = None  
-        self.wait_time = None   
+        self.start_time = None
+        self.wait_time = None
 
-class Simulation: #To manage the entire state and logic of the queueing simulation.
-    def __init__(self, duration, max_arrival, max_service):
+class Simulation:
+    def __init__(self, duration, max_arrival, max_service, log_events=False):
         self.duration = duration
         self.max_arrival = max_arrival
         self.max_service = max_service
+        self.log_events = log_events
         self.reset()
 
     def reset(self):
@@ -43,7 +45,7 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
 
         events = []
 
-        # Event 1: A new customer arrives
+        # 1. Customer arrives
         if self.time == self.next_arrival:
             service_time = random.randint(1, self.max_service)
             customer = Customer(self.id_counter, self.time, service_time)
@@ -56,7 +58,7 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
             self.id_counter += 1
             self._set_next_arrival()
 
-        # Event 2: making The server free to serve the next customer
+        # 2. Start serving next in queue
         if self.current_customer is None and self.queue:
             self.current_customer = self.queue.pop(0)
             self.current_customer.start_time = self.time
@@ -67,7 +69,7 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
                 'message': f"[T={self.time}] Serving Customer {self.current_customer.id} (waited {self.current_customer.wait_time} mins). Queue: {len(self.queue)}"
             })
 
-        # Event 3: The server finishes with the current customer
+        # 3. Finish serving
         if self.current_customer and self.time >= self.service_end_time:
             events.append({
                 'type': 'finish',
@@ -76,16 +78,23 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
             })
             self.current_customer = None
 
-        # Update server busy time metric
         if self.current_customer:
             self.total_busy_time += 1
-            
+
+        if self.log_events:
+            for e in events:
+                print(e['message'])
+
         self.time += 1
         return events
 
-    def get_summary(self, stress_threshold):
+    def run(self):
+        while self.state == SimulationState.RUNNING:
+            self.step()
+
+    def get_summary(self, stress_threshold=5):
         served = [c for c in self.all_customers if c.wait_time is not None]
-        
+
         if not served:
             return {
                 'avg_wait': 0, 'max_wait': 0, 'total_served': 0,
@@ -95,9 +104,9 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
 
         wait_times = [c.wait_time for c in served]
         avg_wait = sum(wait_times) / len(served)
-        max_wait = max(wait_times) if wait_times else 0
+        max_wait = max(wait_times)
         utilization = (self.total_busy_time / self.time) * 100 if self.time > 0 else 0
-        
+
         stressed_customers = [c for c in served if c.wait_time > stress_threshold]
         stress_percent = (len(stressed_customers) / len(served)) * 100
 
@@ -109,13 +118,13 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
         ]
 
         if stress_percent == 0:
-            insight = {'text': "Excellent Performance: All customers were served quickly.", 'color': "#2e7d32"} # Green
+            insight = {'text': "Excellent: All customers served promptly.", 'color': "#2e7d32"}
         elif stress_percent < 25:
-            insight = {'text': f"Good Performance: System is mostly smooth, though {len(stressed_customers)} customer(s) experienced long waits.", 'color': "#f9a825"} # Yellow
+            insight = {'text': f"Good: Only {len(stressed_customers)} had long waits.", 'color': "#f9a825"}
         elif stress_percent < 50:
-            insight = {'text': f"Under Pressure: Almost half of customers waited longer than {stress_threshold} minutes.", 'color': "#ef6c00"} # Orange
+            insight = {'text': "Fair: Nearly half waited too long.", 'color': "#ef6c00"}
         else:
-            insight = {'text': "System Overloaded: A majority of customers faced unacceptable wait times.", 'color': "#c62828"} # Red
+            insight = {'text': "Poor: System overloaded.", 'color': "#c62828"}
 
         return {
             'avg_wait': avg_wait,
@@ -123,5 +132,6 @@ class Simulation: #To manage the entire state and logic of the queueing simulati
             'total_served': len(served),
             'utilization': utilization,
             'messages': summary_messages,
-            'insight': insight
+            'insight': insight,
+            'customers': self.all_customers  # For analytics
         }
