@@ -45,7 +45,7 @@ class PatternEngine:
         return self.patterns
 
     def suggest(self) -> List[str]:
-        """Generates suggestions based on identified patterns."""
+        
         if not self.patterns:
             return ["No patterns detected to generate suggestions."]
             

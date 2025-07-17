@@ -9,7 +9,8 @@ from config import SIMULATION_CONFIG
 FONT_FAMILY = "Inter"
 
 class Application(tk.Frame):
-    """The main GUI application for the simulation."""
+    """Main GUI application for the Multi-Server Queueing System Simulation."""
+
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
@@ -25,11 +26,12 @@ class Application(tk.Frame):
         self.simulation = None
         self.simulation_speed_ms = 25  # update interval in ms
 
+        # Initialize widgets
         self._create_widgets()
         self._layout_widgets()
 
     def _create_widgets(self):
-        # Frames with padding and relief for clarity
+        # Main Frames
         self.controls_frame = ttk.Frame(self, padding=20)
         self.output_frame = ttk.Frame(self)
         self.plot_frame = ttk.Frame(self.output_frame, relief="sunken", padding=10)
@@ -38,43 +40,100 @@ class Application(tk.Frame):
         self.summary_frame = ttk.LabelFrame(self.info_frame, text="Live Summary", padding=15)
         self.status_frame = ttk.LabelFrame(self.controls_frame, text="Live Status", padding=15)
 
-        # Control Sliders + labels
+        # Create sliders for simulation parameters
         self._create_control_sliders()
 
-        # Buttons with consistent style and padding
-        self.run_button = ttk.Button(self.controls_frame, text="Run Simulation", command=self.run_simulation, style='Accent.TButton')
-        self.reset_button = ttk.Button(self.controls_frame, text="Reset", command=self.reset_simulation, state="disabled")
-        self.export_button = ttk.Button(self.controls_frame, text="Export Customer Data", command=self.export_to_csv, state="disabled")
+        # Control buttons
+        self.run_button = ttk.Button(self.controls_frame, text="Run Simulation",
+                                     command=self.run_simulation, style='Accent.TButton')
+        self.reset_button = ttk.Button(self.controls_frame, text="Reset",
+                                       command=self.reset_simulation, state="disabled")
+        self.export_button = ttk.Button(self.controls_frame, text="Export Customer Data",
+                                        command=self.export_to_csv, state="disabled")
 
-        # Theme switch with label
+        # Theme toggle switch
         theme_frame = ttk.Frame(self.controls_frame)
-        self.theme_switch = ttk.Checkbutton(theme_frame, text="Dark Mode", style="Switch.TCheckbutton", command=sv_ttk.toggle_theme)
-        self.theme_switch.state(['selected'])  # default dark theme
+        self.theme_switch = ttk.Checkbutton(
+            theme_frame, text="Dark Mode",
+            style="Switch.TCheckbutton",
+            command=self.toggle_theme
+        )
+        self.theme_switch.state(['selected'])  # Default to dark theme
         self.theme_switch.pack(side="left", pady=5)
         theme_frame.grid_columnconfigure(0, weight=1)
 
-        # Output widgets
+        # Simulation plot and progress bar
         self.simulation_plot = SimulationPlot(self.plot_frame)
-        self.progress_bar = ttk.Progressbar(self.plot_frame, orient="horizontal", mode="determinate", length=400)
+        self.progress_bar = ttk.Progressbar(self.plot_frame, orient="horizontal",
+                                            mode="determinate", length=400)
 
+        # Other UI components
         self._create_log_widgets()
         self._create_summary_widgets()
         self._create_status_widgets()
 
-    def _create_control_sliders(self):
-        # Title label for controls
-        ttk.Label(self.controls_frame, text="Simulation Controls", font=(FONT_FAMILY, 18, "bold"), style='Accent.TLabel').grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky="w")
+    def _layout_widgets(self):
+        # Configure grid weights
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        # Use a consistent padding for labels and sliders
-        self.duration_var = self._create_slider("Duration (mins)", 60, 720, SIMULATION_CONFIG['duration'], 1)
-        self.servers_var = self._create_slider("Number of Servers", 1, 10, SIMULATION_CONFIG['num_servers'], 2)
-        self.arrival_var = self._create_slider("Max Arrival Interval", 1, 15, SIMULATION_CONFIG['max_arrival_interval'], 3)
-        self.service_var = self._create_slider("Max Service Time", 5, 25, SIMULATION_CONFIG['max_service_time'], 4)
-        self.stress_var = self._create_slider("Stress Threshold (wait)", 1, 30, SIMULATION_CONFIG['stress_threshold'], 5)
+        # Layout main frames
+        self.controls_frame.grid(row=0, column=0, sticky="nsw", padx=(0, 25), pady=10)
+        self.output_frame.grid(row=0, column=1, sticky="nsew", pady=10)
+        self.output_frame.rowconfigure(0, weight=3)
+        self.output_frame.rowconfigure(1, weight=1)
+        self.output_frame.columnconfigure(0, weight=1)
+
+        # Controls frame widgets
+        self.status_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(20, 15))
+        self.run_button.grid(row=7, column=0, columnspan=2, pady=(20, 10), sticky="ew")
+        self.reset_button.grid(row=8, column=0, columnspan=2, pady=5, sticky="ew")
+        self.export_button.grid(row=9, column=0, columnspan=2, pady=5, sticky="ew")
+        self.theme_switch.master.grid(row=10, column=0, columnspan=2, pady=(20, 0), sticky="w")
+
+        # Plot frame layout
+        self.plot_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        self.plot_frame.rowconfigure(0, weight=1)
+        self.plot_frame.columnconfigure(0, weight=1)
+        self.simulation_plot.get_tk_widget().pack(fill="both", expand=True)
+        self.progress_bar.pack(fill="x", pady=(8, 0))
+
+        # Info frame layout
+        self.info_frame.grid(row=1, column=0, sticky="nsew")
+        self.info_frame.columnconfigure(0, weight=2)
+        self.info_frame.columnconfigure(1, weight=1)
+        self.info_frame.rowconfigure(0, weight=1)
+
+        self.log_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 25))
+        self.summary_frame.grid(row=0, column=1, sticky="nsew")
+
+        # Pack metrics and insight label
+        for key, var in self.metrics.items():
+            var['frame'].pack(fill="x", padx=15, pady=8)
+        self.insight_label.pack(pady=20, padx=15, fill="x", expand=True)
+
+    def _create_control_sliders(self):
+        ttk.Label(self.controls_frame, text="Simulation Controls",
+                  font=(FONT_FAMILY, 18, "bold"), style='Accent.TLabel').grid(
+            row=0, column=0, columnspan=2, pady=(0, 20), sticky="w")
+
+        self.duration_var = self._create_slider(
+            "Duration (mins)", 60, 720, SIMULATION_CONFIG['duration'], 1)
+        self.servers_var = self._create_slider(
+            "Number of Servers", 1, 10, SIMULATION_CONFIG['num_servers'], 2)
+        self.arrival_var = self._create_slider(
+            "Max Arrival Interval", 1, 15, SIMULATION_CONFIG['max_arrival_interval'], 3)
+        self.service_var = self._create_slider(
+            "Max Service Time", 5, 25, SIMULATION_CONFIG['max_service_time'], 4)
+        self.stress_var = self._create_slider(
+            "Stress Threshold (wait)", 1, 30, SIMULATION_CONFIG['stress_threshold'], 5)
 
     def _create_log_widgets(self):
-        self.log_box = tk.Text(self.log_frame, height=12, font=(FONT_FAMILY, 11), wrap="word", relief="flat", bd=0, bg="#222222", fg="#eee")
-        log_scrollbar = ttk.Scrollbar(self.log_frame, orient="vertical", command=self.log_box.yview)
+        self.log_box = tk.Text(self.log_frame, height=12, font=(FONT_FAMILY, 11),
+                               wrap="word", relief="flat", bd=0,
+                               bg="#222222", fg="#eee")
+        log_scrollbar = ttk.Scrollbar(self.log_frame, orient="vertical",
+                                      command=self.log_box.yview)
         self.log_box.config(yscrollcommand=log_scrollbar.set)
 
         self.log_box.pack(side="left", fill="both", expand=True)
@@ -87,63 +146,60 @@ class Application(tk.Frame):
         self.log_box.tag_configure("summary", font=(FONT_FAMILY, 11, "bold"))
 
     def _create_summary_widgets(self):
-        # Metrics arranged vertically with spacing
         self.metrics = {
             "Avg. Wait": self._create_metric("Avg. Wait Time", "0.0 min"),
             "Max Wait": self._create_metric("Max Wait Time", "0 min"),
             "Served": self._create_metric("Customers Served", "0"),
             "Utilization": self._create_metric("Avg. Utilization", "0%")
         }
-        self.insight_label = ttk.Label(self.summary_frame, text="Run simulation to see insights.", wraplength=300, justify="center", font=(FONT_FAMILY, 12, "italic"), foreground="#bbb")
+        self.insight_label = ttk.Label(
+            self.summary_frame,
+            text="Run simulation to see insights.",
+            wraplength=300,
+            justify="center",
+            font=(FONT_FAMILY, 12, "italic"),
+            foreground="#bbb"
+        )
 
     def _create_status_widgets(self):
         self.queue_label_var = tk.StringVar(value="Queue: 0")
-        ttk.Label(self.status_frame, textvariable=self.queue_label_var, font=(FONT_FAMILY, 16, "bold")).pack(pady=8)
+        ttk.Label(self.status_frame, textvariable=self.queue_label_var,
+                  font=(FONT_FAMILY, 16, "bold")).pack(pady=8)
         self.server_status_frame = ttk.Frame(self.status_frame)
         self.server_status_frame.pack(pady=10)
         self.server_labels = []
 
-    def _layout_widgets(self):
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+    def _create_slider(self, text, from_, to, default, row):
+        label = ttk.Label(self.controls_frame, text=text)
+        label.grid(row=row, column=0, sticky="w", padx=(0, 15), pady=6)
+        var = tk.IntVar(value=default)
+        slider_frame = ttk.Frame(self.controls_frame)
+        slider_frame.grid(row=row, column=1, sticky="ew", pady=6)
+        slider = ttk.Scale(slider_frame, from_=from_, to=to, orient="horizontal",
+                           variable=var,
+                           command=lambda s, v=var: v.set(int(float(s))))
+        slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        val_label = ttk.Label(slider_frame, textvariable=var, width=4,
+                              anchor="center", font=(FONT_FAMILY, 11, "bold"))
+        val_label.pack(side="right")
+        return var
 
-        # Left controls frame
-        self.controls_frame.grid(row=0, column=0, sticky="nsw", padx=(0, 25), pady=10)
-        # Right output frame (plot + info)
-        self.output_frame.grid(row=0, column=1, sticky="nsew", pady=10)
-        self.output_frame.rowconfigure(0, weight=3)
-        self.output_frame.rowconfigure(1, weight=1)
-        self.output_frame.columnconfigure(0, weight=1)
+    def _create_metric(self, label_text, default_value):
+        frame = ttk.Frame(self.summary_frame)
+        ttk.Label(frame, text=f"{label_text}:", font=(FONT_FAMILY, 11)).pack(side="left", padx=5)
+        var = tk.StringVar(value=default_value)
+        ttk.Label(frame, textvariable=var, font=(FONT_FAMILY, 14, "bold"),
+                  style='Accent.TLabel').pack(side="right", padx=5)
+        return {'frame': frame, 'var': var}
 
-        # Control frame widgets
-        self.status_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(20, 15))
-        self.run_button.grid(row=7, column=0, columnspan=2, pady=(20, 10), sticky="ew")
-        self.reset_button.grid(row=8, column=0, columnspan=2, pady=5, sticky="ew")
-        self.export_button.grid(row=9, column=0, columnspan=2, pady=5, sticky="ew")
-        # Theme switch aligned left with some padding
-        self.theme_switch.master.grid(row=10, column=0, columnspan=2, pady=(20, 0), sticky="w")
-
-        # Plot frame with padding & sunken relief
-        self.plot_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
-        self.plot_frame.rowconfigure(0, weight=1)
-        self.plot_frame.columnconfigure(0, weight=1)
-        self.simulation_plot.get_tk_widget().pack(fill="both", expand=True)
-        self.progress_bar.pack(fill="x", pady=(8, 0))
-
-        # Info frame with grid layout
-        self.info_frame.grid(row=1, column=0, sticky="nsew")
-        self.info_frame.columnconfigure(0, weight=2)
-        self.info_frame.columnconfigure(1, weight=1)
-        self.info_frame.rowconfigure(0, weight=1)
-
-        self.log_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 25))
-        self.summary_frame.grid(row=0, column=1, sticky="nsew")
-
-        for key, var in self.metrics.items():
-            var['frame'].pack(fill="x", padx=15, pady=8)
-        self.insight_label.pack(pady=20, padx=15, fill="x", expand=True)
-
-    # The rest of your methods remain unchanged but with some minor padding adjustments
+    def toggle_theme(self):
+        sv_ttk.toggle_theme()
+        # Sync the checkbox state manually because toggle_theme changes theme internally
+        current_theme = sv_ttk.get_theme()
+        if current_theme == "dark":
+            self.theme_switch.state(['selected'])
+        else:
+            self.theme_switch.state(['!selected'])
 
     def run_simulation(self):
         self.reset_simulation()
@@ -162,7 +218,7 @@ class Application(tk.Frame):
         self.update_simulation()
 
     def update_simulation(self):
-        if self.simulation.state != SimulationState.RUNNING:
+        if not self.simulation or self.simulation.state != SimulationState.RUNNING:
             return
 
         events = self.simulation.step()
@@ -209,13 +265,15 @@ class Application(tk.Frame):
         self.log("Adjust controls and click 'Run Simulation'.")
 
         self.update_metric_vars(avg_wait="0.0 min", max_wait="0 min", served="0", util="0%")
-        self.insight_label.config(text="Run simulation to see insights.", font=(FONT_FAMILY, 12, "italic"), foreground="#bbb")
+        self.insight_label.config(text="Run simulation to see insights.",
+                                 font=(FONT_FAMILY, 12, "italic"), foreground="#bbb")
 
         self.set_controls_state("normal")
         self.reset_button.config(state="disabled")
         self.export_button.config(state="disabled")
         self.progress_bar['value'] = 0
         self.queue_label_var.set("Queue: 0")
+        self.update_server_display(0)  # Clear server labels
 
     def update_live_data(self):
         if not self.simulation or self.simulation.time == 0:
@@ -242,7 +300,8 @@ class Application(tk.Frame):
             messagebox.showwarning("No Data", "There is no customer data to export.")
             return
 
-        path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        path = filedialog.asksaveasfilename(defaultextension=".csv",
+                                            filetypes=[("CSV files", "*.csv")])
         if not path:
             return
 
@@ -252,7 +311,9 @@ class Application(tk.Frame):
                 writer.writerow(["ID", "Arrival Time", "Service Time", "Wait Time", "Served"])
                 for cust in self.simulation.all_customers:
                     writer.writerow([
-                        cust.id, cust.arrival_time, cust.service_time,
+                        cust.id,
+                        cust.arrival_time,
+                        cust.service_time,
                         f"{cust.wait_time:.0f}" if cust.wait_time is not None else "N/A",
                         "Yes" if cust.end_service_time is not None else "No"
                     ])
@@ -260,29 +321,8 @@ class Application(tk.Frame):
         except IOError as e:
             messagebox.showerror("Export Failed", f"An error occurred: {e}")
 
-    # Helper methods (sliders, metrics, etc.)
-
-    def _create_slider(self, text, from_, to, default, row):
-        label = ttk.Label(self.controls_frame, text=text)
-        label.grid(row=row, column=0, sticky="w", padx=(0, 15), pady=6)
-        var = tk.IntVar(value=default)
-        slider_frame = ttk.Frame(self.controls_frame)
-        slider_frame.grid(row=row, column=1, sticky="ew", pady=6)
-        slider = ttk.Scale(slider_frame, from_=from_, to=to, orient="horizontal", variable=var,
-                           command=lambda s, v=var: v.set(int(float(s))))
-        slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        val_label = ttk.Label(slider_frame, textvariable=var, width=4, anchor="center", font=(FONT_FAMILY, 11, "bold"))
-        val_label.pack(side="right")
-        return var
-
-    def _create_metric(self, label_text, default_value):
-        frame = ttk.Frame(self.summary_frame)
-        ttk.Label(frame, text=f"{label_text}:", font=(FONT_FAMILY, 11)).pack(side="left", padx=5)
-        var = tk.StringVar(value=default_value)
-        ttk.Label(frame, textvariable=var, font=(FONT_FAMILY, 14, "bold"), style='Accent.TLabel').pack(side="right", padx=5)
-        return {'frame': frame, 'var': var}
-
     def update_server_display(self, num_servers):
+        # Clear previous labels
         for widget in self.server_status_frame.winfo_children():
             widget.destroy()
         self.server_labels = []
@@ -301,13 +341,23 @@ class Application(tk.Frame):
         self.metrics["Utilization"]['var'].set(util)
 
     def set_controls_state(self, state):
+        # Enable/disable sliders and buttons accordingly
         for child in self.controls_frame.winfo_children():
             widget_type = child.winfo_class()
             if widget_type in ('TScale', 'TButton'):
                 child.config(state=state)
+
+        # Always keep the run button enabled or disabled properly
         self.run_button.config(state="disabled" if state == "disabled" else "normal")
         self.reset_button.config(state="normal" if state == "disabled" else "disabled")
 
     def log(self, message, tag=None):
-        self.log_box.insert(tk.END, f"[{self.simulation.time if self.simulation else 0:03d}] {message}\n", tag)
+        timestamp = self.simulation.time if self.simulation else 0
+        self.log_box.insert(tk.END, f"[{timestamp:03d}] {message}\n", tag)
         self.log_box.see(tk.END)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = Application(master=root)
+    app.mainloop()
